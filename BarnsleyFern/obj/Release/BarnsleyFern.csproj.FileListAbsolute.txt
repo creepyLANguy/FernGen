@@ -1,0 +1,13 @@
+c:\users\al\documents\visual studio 2015\Projects\BarnsleyFern\BarnsleyFern\obj\Release\BarnsleyFern.Form1.resources
+c:\users\al\documents\visual studio 2015\Projects\BarnsleyFern\BarnsleyFern\obj\Release\BarnsleyFern.csproj.GenerateResource.Cache
+C:\Users\AL\Documents\Visual Studio 2015\Projects\BarnsleyFern\BarnsleyFern\bin\Release\FernGen.exe.config
+C:\Users\AL\Documents\Visual Studio 2015\Projects\BarnsleyFern\BarnsleyFern\bin\Release\FernGen.exe
+C:\Users\AL\Documents\Visual Studio 2015\Projects\BarnsleyFern\BarnsleyFern\bin\Release\FernGen.pdb
+C:\Users\AL\Documents\Visual Studio 2015\Projects\BarnsleyFern\BarnsleyFern\obj\Release\FernGen.Properties.Resources.resources
+C:\Users\AL\Documents\Visual Studio 2015\Projects\BarnsleyFern\BarnsleyFern\obj\Release\FernGen.exe
+C:\Users\AL\Documents\Visual Studio 2015\Projects\BarnsleyFern\BarnsleyFern\obj\Release\FernGen.pdb
+C:\Users\AL\Documents\Visual Studio 2015\Projects\BarnsleyFern\BarnsleyFern\obj\Release\BarnsleyFern.csprojResolveAssemblyReference.cache
+C:\Users\AL\documents\visual studio 2015\Projects\BarnsleyFern\BarnsleyFern\obj\Release\BarnsleyFern.AdvancedForm.resources
+C:\Users\AL\Documents\Visual Studio 2015\Projects\BarnsleyFern\BarnsleyFern\obj\Release\BarnsleyFern.ColourPicker.resources
+C:\Users\AL\Documents\Visual Studio 2015\Projects\BarnsleyFern\BarnsleyFern\obj\Release\BarnsleyFern.StatusForm.resources
+C:\Users\AL\Documents\Visual Studio 2015\Projects\BarnsleyFern\BarnsleyFern\obj\Release\BarnsleyFern.About.resources
