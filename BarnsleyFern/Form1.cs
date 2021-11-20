@@ -1,20 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Drawing.Imaging;
 using System.Threading;
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
+using System.IO;
 
 namespace BarnsleyFern
 {
-    public partial class Form1 : Form
+  public partial class Form1 : Form
     {
         ColourPicker c;
 
@@ -28,7 +24,7 @@ namespace BarnsleyFern
 
         bool isComplete;
 
-        Bitmap fileBitMap;
+        Bitmap fileBitMap = null;
 
         public static Color colour;
 
@@ -39,7 +35,10 @@ namespace BarnsleyFern
         int multiplier;
         int maxY;
 
-        string filename;
+        private HashSet<Tuple<double, double>> pointsList = new HashSet<Tuple<double, double>>();
+
+        string filenameImage;
+        string filenamePoints;
 
         Thread logicThread;
 
@@ -132,14 +131,8 @@ namespace BarnsleyFern
                 }
             }
 
-            if (isComplete == true)
-            {
-                OpenImageButton.Enabled = true;
-            }
-            else
-            {
-                OpenImageButton.Enabled = false;
-            }
+            OpenImageButton.Enabled = isComplete;
+            OpenPointsFileButton.Enabled = isComplete;
         }
 
         void SetDefaultCoeffs()
@@ -177,17 +170,20 @@ namespace BarnsleyFern
         }
 
         void PlayGame()
-        {
-            try
+        { 
+            if (GenerateImageFileCheckBox.Checked)
             {
+              try
+              {
                 fileBitMap = new Bitmap(dim, dim, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            }
-            catch (Exception ex)
-            {
+              }
+              catch (Exception ex)
+              {
                 Console.WriteLine(ex.ToString());
                 fileBitMap = null;
                 Restart_Threadsafe();
                 return;
+              }
             }
 
             startTime = DateTime.Now;
@@ -230,6 +226,11 @@ namespace BarnsleyFern
 
                 PlotPoint();
 
+                if (GeneratePointsListCheckBox.Checked)
+                {
+                  pointsList.Add(new Tuple<double, double>(x, y));
+                }
+
                 ++stepsCompleted;
 
 
@@ -244,6 +245,11 @@ namespace BarnsleyFern
 
         void PlotPoint()
         {
+            if (GenerateImageFileCheckBox.Checked == false)
+            {
+              return;
+            }
+
             int xPixel = xdisplacement + (int)(multiplier * x);
             int yPixel = (int)(multiplier * y);
 
@@ -257,7 +263,7 @@ namespace BarnsleyFern
                 return;
             }
 
-            //We flip each pixel vertically, seeing as the fern is otherwsie being drawn upside down.
+            //We flip each pixel vertically, seeing as the fern is otherwise being drawn upside down.
             yPixel = maxY - yPixel;
 
             fileBitMap.SetPixel(xPixel, yPixel, colour);
@@ -273,12 +279,13 @@ namespace BarnsleyFern
             }
             else
             {
-                SaveImage_ThreadThreadSafe();
+                Save_ThreadSafe();
 
-                if (s != null)
+                try
                 {
-                    s.Close();
+                  s.Close();
                 }
+                catch (Exception e) { }
 
                 isPlaying = false;
                 isComplete = true;
@@ -286,52 +293,48 @@ namespace BarnsleyFern
             }
         }
 
-        delegate void SaveImageCallback();
-        void SaveImage_ThreadThreadSafe()
+        delegate void Save_Callback();
+        void Save_ThreadSafe()
         {
-            if (fileBitMap == null)
-            {
-                return;
-            }
-
             if (this.InvokeRequired)
             {
-                SaveImageCallback d = new SaveImageCallback(SaveImage_ThreadThreadSafe);
-                this.Invoke(d, new object[] { });
+              Save_Callback d = new Save_Callback(Save_ThreadSafe);
+              this.Invoke(d, new object[] { });
             }
             else
             {
-                PaintConfigInfo(fileBitMap);
-                filename = "Fern_" + stepsCompleted + "_" + DateTime.Now.ToString("h.mm.ss.tt") + ".png";
-                fileBitMap.Save(filename, ImageFormat.Png);
-                fileBitMap.Dispose();
-
-                if (AutoOpenCheckbox.Checked == true)
+                if (GenerateImageFileCheckBox.Checked)
                 {
-                    OpenImageFile();
+                  PaintConfigInfo(fileBitMap);
+                  filenameImage = "Fern_" + stepsCompleted + "_" + DateTime.Now.ToString("h.mm.ss.tt") + ".png";
+                  fileBitMap.Save(filenameImage, ImageFormat.Png);
+                  fileBitMap.Dispose();
+
+                  if (ImageAutoOpenCheckbox.Checked)
+                  {
+                    OpenFile(filenameImage);
+                  }
+                }
+
+                if (pointsList.Count > 0)
+                {
+                  filenamePoints = "Fern_" + stepsCompleted + "_" + DateTime.Now.ToString("h.mm.ss.tt") + ".txt";
+
+                  WriteConfigToFile();
+
+                  WritePointsToFile();
+
+                  if (AutoOpenPointsFileCheckBox.Checked)
+                  {
+                    OpenFile(filenamePoints);
+                  }
                 }
             }
         }
 
         void PaintConfigInfo(Bitmap bmp)
         {
-            string infoString = "";
-            for (int row = 0; row < 4; ++row)
-            {
-                for (int col = 0; col < 7; ++col)
-                {
-                    infoString += "[";
-                    infoString += Convert.ToString(coeffs[row, col]);
-                    infoString += "]";
-                }
-                infoString += "\n";
-            }
-            infoString += "Steps: " + stepsCompleted + " / " + steps + " (" + (int)((stepsCompleted/steps)*100) + "%)" + "\n";
-
-            infoString += "Dim: " + dim +"px\n";
-
-            TimeSpan elapsed = DateTime.Now - startTime;
-            infoString += "Time Taken: " + string.Format("{0:D2}h:{1:D2}m:{2:D2}s", elapsed.Hours, elapsed.Minutes, elapsed.Seconds) +  "\n";
+            string infoString = GetConfigInfoString();
 
             Graphics g = Graphics.FromImage(bmp);
             g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -342,7 +345,30 @@ namespace BarnsleyFern
             g.Dispose();
         }
 
-        void OpenImageFile()
+        string GetConfigInfoString()
+        {
+            string infoString = "";
+            for (int row = 0; row < 4; ++row)
+            {
+              for (int col = 0; col < 7; ++col)
+              {
+                infoString += "[";
+                infoString += Convert.ToString(coeffs[row, col]);
+                infoString += "]";
+              }
+              infoString += "\n";
+            }
+            infoString += "Steps: " + stepsCompleted + " / " + steps + " (" + (int)((stepsCompleted / steps) * 100) + "%)" + "\n";
+
+            infoString += "Dim: " + dim + "px\n";
+
+            TimeSpan elapsed = DateTime.Now - startTime;
+            infoString += "Time Taken: " + string.Format("{0:D2}h:{1:D2}m:{2:D2}s", elapsed.Hours, elapsed.Minutes, elapsed.Seconds) + "\n";
+
+            return infoString;
+        }
+
+        void OpenFile(string filename) 
         {
             try
             {
@@ -353,8 +379,7 @@ namespace BarnsleyFern
             catch(Exception ex)
             {
                 ex.ToString();
-                OpenImageButton.Enabled = false;
-                MessageBox.Show(Parent, "Image may have been deleted from drive.");
+                MessageBox.Show(Parent, "File '" + filename + "' may have been deleted from drive.");
             }
         }
 
@@ -388,7 +413,7 @@ namespace BarnsleyFern
             isPlaying = false;
             isComplete = true;
             TryKillLogicThread();
-            SaveImage_ThreadThreadSafe();
+            Save_ThreadSafe();
             SetStates();
         }
 
@@ -400,7 +425,7 @@ namespace BarnsleyFern
 
         private void OpenImageButton_Click(object sender, EventArgs e)
         {
-            OpenImageFile();
+            OpenFile(filenameImage);
         }
 
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
@@ -413,7 +438,7 @@ namespace BarnsleyFern
             //Let's just save what we have. 
             if (isPlaying == true)
             {
-                SaveImage_ThreadThreadSafe();
+                Save_ThreadSafe();
             }
 
             c.Close();
@@ -421,28 +446,25 @@ namespace BarnsleyFern
 
         private void saveButton_Click(object sender, EventArgs e)
         {
-            SaveImage_Intermediate();
+            Save_Intermediate();
         }
 
-        void SaveImage_Intermediate()
+        void Save_Intermediate()
         {
-
             try
             {
-                if (fileBitMap == null)
+                if (GenerateImageFileCheckBox.Checked)
                 {
-                    return;
-                }
+                    Bitmap btemp = new Bitmap(fileBitMap);
+                    PaintConfigInfo(btemp);
+                    filenameImage = "Fern_" + stepsCompleted + "_" + DateTime.Now.ToString("h.mm.ss.tt") + ".png";
+                    btemp.Save(filenameImage, ImageFormat.Png);
+                    btemp.Dispose();
 
-                Bitmap btemp = new Bitmap(fileBitMap);
-                PaintConfigInfo(btemp);
-                filename = "Fern_" + stepsCompleted + "_" + DateTime.Now.ToString("h.mm.ss.tt") + ".png";
-                btemp.Save(filename, ImageFormat.Png);
-                btemp.Dispose();
-
-                if (AutoOpenCheckbox.Checked == true)
-                {
-                    OpenImageFile();
+                    if (ImageAutoOpenCheckbox.Checked)
+                    {
+                        OpenFile(filenameImage);
+                    }
                 }
             }
             catch (Exception ex)
@@ -450,6 +472,46 @@ namespace BarnsleyFern
                 Console.WriteLine(ex.ToString());
                 MessageBox.Show(Parent, "Failed to save an image due to large dimensions chosen.\n\nA final image can be saved if you :\n\na) Click the 'Play' button and let the program complete its current run.\n\nor\n\nb) Click the 'Stop' button and end the current run.");
             }
+
+            try
+            {
+              if (pointsList.Count > 0)
+              {
+                filenamePoints = "Fern_" + stepsCompleted + "_" + DateTime.Now.ToString("h.mm.ss.tt") + ".txt";
+                
+                WriteConfigToFile();
+
+                WritePointsToFile();
+
+                if (AutoOpenPointsFileCheckBox.Checked)
+                {
+                  OpenFile(filenamePoints);
+                }
+              }
+            }
+            catch (Exception ex)
+            {
+              Console.WriteLine(ex.ToString());
+              MessageBox.Show(Parent, "Failed to save points file '" + filenamePoints + "' for some reason... :(");
+            }
+        }
+
+        void WriteConfigToFile()
+        {
+          string infoString = GetConfigInfoString();
+          StreamWriter sw = new StreamWriter(filenamePoints, true); 
+          sw.WriteLine(infoString);
+          sw.Close();
+    }
+
+        void WritePointsToFile()
+        {
+          StreamWriter sw = new StreamWriter(filenamePoints, true);
+          foreach (var point in pointsList)
+          {
+            sw.WriteLine(point.Item1 + " , " + point.Item2);
+          }
+          sw.Close();
         }
 
         public void CheckProgressButton_Click(object sender, EventArgs e)
@@ -501,8 +563,6 @@ namespace BarnsleyFern
                 PauseButton.Text = "Pause";
                 SaveButton.Enabled = false;
             }
-
-
         }
 
         void TryKillLogicThread()
@@ -531,7 +591,19 @@ namespace BarnsleyFern
             about.ShowDialog();
         }
 
-        delegate void RestartCallback();
+    private void GeneratePointsListCheckBox_CheckedChanged(object sender, EventArgs e)
+    {
+      AutoOpenPointsFileCheckBox.Enabled = GeneratePointsListCheckBox.Checked;
+      OpenPointsFileButton.Enabled = GeneratePointsListCheckBox.Checked && isComplete;
+    }
+
+    private void GenerateImageFileCheckBox_CheckedChanged(object sender, EventArgs e)
+    {
+      ImageAutoOpenCheckbox.Enabled = GenerateImageFileCheckBox.Checked;
+      OpenImageButton.Enabled = GenerateImageFileCheckBox.Checked && isComplete;
+    }
+
+    delegate void RestartCallback();
         private void Restart_Threadsafe()
         {
             if (this.InvokeRequired)
