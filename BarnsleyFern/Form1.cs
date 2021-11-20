@@ -35,7 +35,7 @@ namespace BarnsleyFern
         int multiplier;
         int maxY;
 
-        private HashSet<Tuple<double, double>> pointsList = new HashSet<Tuple<double, double>>();
+        private List<Tuple<double, double>> pointsList = new List<Tuple<double, double>>();
 
         string filenameImage;
         string filenamePoints;
@@ -192,7 +192,7 @@ namespace BarnsleyFern
 
             double random;
 
-            Random rnd = new Random();
+            Random rnd = new Random(DateTime.Now.Millisecond);
 
             stepsCompleted = 0;
 
@@ -309,6 +309,7 @@ namespace BarnsleyFern
                   filenameImage = "Fern_" + stepsCompleted + "_" + DateTime.Now.ToString("h.mm.ss.tt") + ".png";
                   fileBitMap.Save(filenameImage, ImageFormat.Png);
                   fileBitMap.Dispose();
+                  GC.Collect();
 
                   if (ImageAutoOpenCheckbox.Checked)
                   {
@@ -460,6 +461,7 @@ namespace BarnsleyFern
                     filenameImage = "Fern_" + stepsCompleted + "_" + DateTime.Now.ToString("h.mm.ss.tt") + ".png";
                     btemp.Save(filenameImage, ImageFormat.Png);
                     btemp.Dispose();
+                    GC.Collect();
 
                     if (ImageAutoOpenCheckbox.Checked)
                     {
@@ -498,20 +500,23 @@ namespace BarnsleyFern
 
         void WriteConfigToFile()
         {
-          string infoString = GetConfigInfoString();
-          StreamWriter sw = new StreamWriter(filenamePoints, true); 
-          sw.WriteLine(infoString);
-          sw.Close();
-    }
+            string infoString = GetConfigInfoString();
+            StreamWriter sw = new StreamWriter(filenamePoints, true); 
+            sw.WriteLine(infoString);
+            sw.Close();
+        }
 
         void WritePointsToFile()
         {
-          StreamWriter sw = new StreamWriter(filenamePoints, true);
-          foreach (var point in pointsList)
-          {
-            sw.WriteLine(point.Item1 + " , " + point.Item2);
-          }
-          sw.Close();
+            StreamWriter sw = new StreamWriter(filenamePoints, true);
+            foreach (var point in pointsList)
+            {
+              sw.WriteLine(point.Item1 + " , " + point.Item2);
+            }
+            sw.Close();
+            pointsList.Clear();
+            pointsList = new List<Tuple<double, double>>();
+            GC.Collect();
         }
 
         public void CheckProgressButton_Click(object sender, EventArgs e)
